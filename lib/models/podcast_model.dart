@@ -1,7 +1,5 @@
 //https://gist.github.com/iggym/6023041
 
-import 'package:flutter/foundation.dart';
-
 import 'episode_model.dart';
 
 class Podcast {

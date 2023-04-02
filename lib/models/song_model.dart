@@ -17,6 +17,19 @@ class Song {
     required this.authorId,
   });
 
+  String toJson() {
+    return '''
+    {
+      "videoId": "$id",
+      "title": "$title",
+      "videoThumbnails": ${thumbnails.toJson()},
+      "lengthSeconds": ${duration.inSeconds},
+      "author": "$author",
+      "authorId": "$authorId"
+    }
+    ''';
+  }
+
   factory Song.fromJson(Map<String, dynamic> json) {
     var thumbnails = json['videoThumbnails'] as List;
     if (thumbnails.length == 1) {

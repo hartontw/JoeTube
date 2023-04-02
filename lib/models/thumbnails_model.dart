@@ -9,6 +9,28 @@ class Thumbnails {
 
   Thumbnails({required this.low, required this.medium, required this.high});
 
+  String toJson() {
+    return '''
+    [
+      {
+        "url": "$low",
+        "width": 120,
+        "height": 90
+      },
+      {
+        "url": "$medium",
+        "width": 320,
+        "height": 180
+      },
+      {
+        "url": "$high",
+        "width": 480,
+        "height": 360
+      }
+    ]
+    ''';
+  }
+
   factory Thumbnails.fromJson(List ts) {
     if (ts.isEmpty) throw Exception('Thumbnails not found');
 

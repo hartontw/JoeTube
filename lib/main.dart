@@ -28,6 +28,7 @@ class _JoeTubeState extends State<JoeTube> {
       home: const HomeScreen(),
       getPages: [
         GetPage(name: '/', page: () => const HomeScreen()),
+        GetPage(name: '/songlist', page: () => const SonglistScreen()),
       ],
     );
   }

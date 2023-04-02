@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:joetube/widgets/main_scaffold.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class SonglistScreen extends StatelessWidget {
+  const SonglistScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -10,6 +10,6 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildBody() {
-    return const Text("HomeScreen");
+    return const Text("SonglistScreen");
   }
 }

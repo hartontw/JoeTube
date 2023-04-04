@@ -1,14 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:joetube/services/audio_service.dart';
+import 'package:joetube/services/settings.dart';
+import 'package:joetube/services/youtube_api.dart';
 
 import 'screens/screens.dart';
 
 Future<void> main() async {
-  runApp(const JoeTube());
+  //PodcastService
+  //RadioService
+
+  UserSettings settings = UserSettings();
+  await settings.init();
+
+  AudioService audioService = AudioService(settings.getMaxSongHistory());
+  settings.addMaxSongHistoryListener((max) => audioService.maxHistory = max);
+
+  InvidiousApi youtubeApi = InvidiousApi(settings.getYoutubeApiUrl());
+  settings.addYoutubeApiUrlListener((url) => youtubeApi.url = url);
+
+  runApp(JoeTube(
+    settings: settings,
+    audio: audioService,
+    youtube: youtubeApi,
+  ));
 }
 
 class JoeTube extends StatefulWidget {
-  const JoeTube({super.key});
+  const JoeTube(
+      {super.key,
+      required this.settings,
+      required this.audio,
+      required this.youtube});
+
+  final Settings settings;
+  final AudioService audio;
+  final YouTubeApi youtube;
 
   @override
   State<JoeTube> createState() => _JoeTubeState();

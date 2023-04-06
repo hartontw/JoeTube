@@ -7,8 +7,9 @@ Future<void> main() async {
   test('getters', () {
     expect(settings.getLanguage(), isNotNull);
     expect(settings.getMaxSongHistory(), isNotNull);
-    expect(() => settings.getYoutubeApiUrl(), throwsException);
-    expect(settings.getYoutubeApiMaxPing(), isNotNull);
+    expect(settings.getYoutubeApiSettings(), isA<YoutubeApiSettings>());
+    expect(settings.getYoutubeApiSettings().url, isNull);
+    expect(settings.getYoutubeApiSettings().maxPing, 50);
   });
 
   test('setters', () async {
@@ -18,11 +19,10 @@ Future<void> main() async {
     await settings.setMaxSongHistory(50);
     expect(settings.getMaxSongHistory(), 50);
 
-    await settings.setYoutubeApiUrl('https://api.example.com');
-    expect(settings.getYoutubeApiUrl(), 'https://api.example.com');
-
-    await settings.setYoutubeApiMaxPing(100);
-    expect(settings.getYoutubeApiMaxPing(), 100);
+    await settings.setYoutubeApiSettings(
+        YoutubeApiSettings(url: 'https://api.example.com'));
+    expect(settings.getYoutubeApiSettings().url, 'https://api.example.com');
+    expect(settings.getYoutubeApiSettings().maxPing, 50);
   });
 
   test('nulls', () async {
@@ -32,10 +32,7 @@ Future<void> main() async {
     await settings.setMaxSongHistory(null);
     expect(settings.getMaxSongHistory(), isNotNull);
 
-    await settings.setYoutubeApiUrl(null);
-    expect(() => settings.getYoutubeApiUrl(), throwsException);
-
-    await settings.setYoutubeApiMaxPing(null);
-    expect(settings.getYoutubeApiMaxPing(), isNotNull);
+    await settings.setYoutubeApiSettings(null);
+    expect(settings.getYoutubeApiSettings(), isA<YoutubeApiSettings>());
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:joetube/services/audio_service.dart';
 import 'package:joetube/services/settings.dart';
@@ -20,11 +21,15 @@ Future<void> main() async {
   UserSettings settings = UserSettings();
   await settings.init();
 
+  var path = await getApplicationDocumentsDirectory();
+
   AudioService audioService = AudioService(settings.getMaxSongHistory());
   settings.addMaxSongHistoryListener((max) => audioService.maxHistory = max);
 
-  InvidiousApi youtubeApi = InvidiousApi(settings.getYoutubeApiUrl());
-  settings.addYoutubeApiUrlListener((url) => youtubeApi.url = url);
+  InvidiousApi youtubeApi =
+      await InvidiousApi.create(settings.getYoutubeApiSettings());
+  settings.addYoutubeApiUrlListener(
+      (settings) => youtubeApi.searchApiUrl(settings));
 
   runApp(JoeTube(
     settings: settings,

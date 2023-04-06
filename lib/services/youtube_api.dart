@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:dart_ping/dart_ping.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:joetube/services/settings.dart';
 
 import '../models/channel_model.dart';
 import '../models/playlist_model.dart';
@@ -19,25 +23,85 @@ abstract class YouTubeApi {
 }
 
 class InvidiousApi implements YouTubeApi {
-  InvidiousApi(String url) {
+  static const String _invidiousApisProvider =
+      'https://api.invidious.io/instances.json?sort_by=health';
+
+  static bool _isValid(String url) {
+    return Uri.tryParse(url) != null;
+  }
+
+  static String _validate(String url) {
+    if (!_isValid(url)) {
+      throw Exception('Invalid YouTube API URL');
+    }
+    return url;
+  }
+
+  static dynamic _decode(Uint8List bytes) {
+    return json.decode(utf8.decode(bytes).replaceAll('\\n', '\\\\n'));
+  }
+
+  static Future<String> _getValidYoutubeApiUrl(int maxPing) async {
+    final response = await http.get(Uri.parse(_invidiousApisProvider));
+
+    if (response.statusCode != 200) {
+      throw Exception('Can not retreive Invidious APIS');
+    }
+
+    var list = jsonDecode(response.body) as List;
+    var apis = list
+        .where((e) =>
+            e[1]['type'] == 'https' &&
+            e[1]['api'] == true &&
+            e[1]['stats'] != null &&
+            e[1]['monitor'] != null &&
+            e[1]['monitor']['statusClass'] == 'success')
+        .toList();
+
+    int timeout = 1;
+    String? bestUrl;
+    Duration bestPing = Duration(seconds: timeout);
+    final max = Duration(milliseconds: maxPing);
+    for (int i = 0; i < apis.length; i++) {
+      final api = apis[i][0];
+      final ping = Ping(api, timeout: timeout);
+      final first = await ping.stream.first;
+      if (first.response?.time != null) {
+        Duration time = first.response?.time as Duration;
+        if (time < max) {
+          return 'https://$api';
+        }
+        if (time < bestPing) {
+          bestPing = time;
+          bestUrl = api;
+        }
+      }
+    }
+
+    if (bestUrl != null) {
+      return 'https://$bestUrl';
+    }
+
+    throw Exception('Valid Invidious API not found');
+  }
+
+  static Future<InvidiousApi> create(YoutubeApiSettings settings) async {
+    String url =
+        settings.url ?? await _getValidYoutubeApiUrl(settings.maxPing ?? 0);
+    return InvidiousApi._(url);
+  }
+
+  InvidiousApi._(String url) {
     _url = _validate(url);
   }
 
   late String _url;
   String get url => _url;
-  set url(String api) {
-    _url = _validate(api);
-  }
-
-  bool _isValid(String url) {
-    return Uri.tryParse(url) != null;
-  }
-
-  String _validate(String url) {
-    if (!_isValid(url)) {
-      throw Exception('Invalid YouTube API URL');
-    }
-    return url;
+  set url(String url) => _url = _validate(url);
+  Future<void> searchApiUrl(YoutubeApiSettings settings) async {
+    String url =
+        settings.url ?? await _getValidYoutubeApiUrl(settings.maxPing ?? 0);
+    _url = _validate(url);
   }
 
   @override
@@ -49,8 +113,8 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Song search failed');
     }
 
-    var songs = json.decode(utf8.decode(response.bodyBytes)) as List;
-    return songs.map((s) => Song.fromJson(s)).toList();
+    var songs = _decode(response.bodyBytes) as List;
+    return songs.map((s) => Song.fromApi(s)).toList();
   }
 
   @override
@@ -62,8 +126,8 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Channel search failed');
     }
 
-    var channels = json.decode(utf8.decode(response.bodyBytes)) as List;
-    return channels.map((c) => Channel.fromJson(c)).toList();
+    var channels = _decode(response.bodyBytes) as List;
+    return channels.map((c) => Channel.fromApi(c)).toList();
   }
 
   @override
@@ -75,8 +139,9 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Playlist search failed');
     }
 
-    var playlists = json.decode(utf8.decode(response.bodyBytes)) as List;
-    return playlists.map((c) => Playlist.fromJson(c)).toList();
+    var playlists = _decode(response.bodyBytes) as List;
+    //var playlists = json.decode(response.body) as List;
+    return playlists.map((c) => Playlist.fromApi(c)).toList();
   }
 
   @override
@@ -87,7 +152,7 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Song get failed');
     }
 
-    return Song.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    return Song.fromApi(_decode(response.bodyBytes));
   }
 
   @override
@@ -98,7 +163,7 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Playlist get failed');
     }
 
-    return Playlist.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    return Playlist.fromApi(_decode(response.bodyBytes));
   }
 
   @override
@@ -109,7 +174,7 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Channel get failed');
     }
 
-    return Channel.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    return Channel.fromApi(_decode(response.bodyBytes));
   }
 
   @override
@@ -120,8 +185,8 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Playlist songs get failed');
     }
 
-    var songs = json.decode(utf8.decode(response.bodyBytes))['videos'] as List;
-    return songs.map((s) => Song.fromJson(s)).toList();
+    var songs = _decode(response.bodyBytes)['videos'] as List;
+    return songs.map((s) => Song.fromApi(s)).toList();
   }
 
   @override
@@ -133,8 +198,8 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Channel songs get failed');
     }
 
-    var songs = json.decode(utf8.decode(response.bodyBytes))['videos'] as List;
-    return songs.map((s) => Song.fromJson(s)).toList();
+    var songs = _decode(response.bodyBytes)['videos'] as List;
+    return songs.map((s) => Song.fromApi(s)).toList();
   }
 
   @override
@@ -146,9 +211,8 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Channel playlist get failed');
     }
 
-    var playlists =
-        json.decode(utf8.decode(response.bodyBytes))['playlists'] as List;
-    return playlists.map((c) => Playlist.fromJson(c)).toList();
+    var playlists = _decode(response.bodyBytes)['playlists'] as List;
+    return playlists.map((c) => Playlist.fromApi(c)).toList();
   }
 
   @override
@@ -160,7 +224,7 @@ class InvidiousApi implements YouTubeApi {
       throw Exception('Trending get failed');
     }
 
-    var songs = json.decode(utf8.decode(response.bodyBytes)) as List;
-    return songs.map((s) => Song.fromJson(s)).toList();
+    var songs = _decode(response.bodyBytes) as List;
+    return songs.map((s) => Song.fromApi(s)).toList();
   }
 }

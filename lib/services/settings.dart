@@ -1,11 +1,15 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dart_ping/dart_ping.dart';
-import 'package:http/http.dart' as http;
+
+class YoutubeApiSettings {
+  final String? url;
+  final int? maxPing;
+
+  YoutubeApiSettings({this.url, this.maxPing = 50});
+}
 
 abstract class Settings {
   final List<Function(int)> _maxSongHistoryListeners = [];
-  final List<Function(String)> _youtubeApiUrlListeners = [];
+  final List<Function(YoutubeApiSettings)> _youtubeSettingsListeners = [];
 
   void addMaxSongHistoryListener(Function(int) event) {
     _maxSongHistoryListeners.add(event);
@@ -15,12 +19,12 @@ abstract class Settings {
     _maxSongHistoryListeners.remove(event);
   }
 
-  void addYoutubeApiUrlListener(Function(String) event) {
-    _youtubeApiUrlListeners.add(event);
+  void addYoutubeApiUrlListener(Function(YoutubeApiSettings) event) {
+    _youtubeSettingsListeners.add(event);
   }
 
-  void removeYoutubeApiUrlListener(Function(String) event) {
-    _youtubeApiUrlListeners.remove(event);
+  void removeYoutubeApiUrlListener(Function(YoutubeApiSettings) event) {
+    _youtubeSettingsListeners.remove(event);
   }
 
   void _onMaxSongHistoryChanged() {
@@ -29,9 +33,9 @@ abstract class Settings {
     }
   }
 
-  void _onYoutubeApiUrlChanged() {
-    for (var listener in _youtubeApiUrlListeners) {
-      listener(getYoutubeApiUrl());
+  void _onYoutubeSettingsChanged() {
+    for (var listener in _youtubeSettingsListeners) {
+      listener(getYoutubeApiSettings());
     }
   }
 
@@ -41,27 +45,24 @@ abstract class Settings {
   int getMaxSongHistory();
   Future<void> setMaxSongHistory(int? maxHistory);
 
-  String getYoutubeApiUrl();
-  Future<void> setYoutubeApiUrl(String? apiUrl);
-
-  int getYoutubeApiMaxPing();
-  Future<void> setYoutubeApiMaxPing(int? maxPing);
+  YoutubeApiSettings getYoutubeApiSettings();
+  Future<void> setYoutubeApiSettings(YoutubeApiSettings? settings);
 }
 
 class DefaultSettings extends Settings {
   static const String _defaultLanguage = 'en';
   static const int _defaultMaxSongHistory = 25;
-  static const int _defaultYoutubeApiMaxPing = 50;
+  static final YoutubeApiSettings _defaultYoutubeApiSettings =
+      YoutubeApiSettings();
 
   String? _language;
   int? _maxSongHistory;
-  String? _youtubeApiUrl;
-  int? _youtubeApiMaxPing;
+  YoutubeApiSettings? _youtubeApiSettings;
 
   DefaultSettings() {
     _language = _defaultLanguage;
     _maxSongHistory = _defaultMaxSongHistory;
-    _youtubeApiMaxPing = _defaultYoutubeApiMaxPing;
+    _youtubeApiSettings = _defaultYoutubeApiSettings;
   }
 
   @override
@@ -71,15 +72,8 @@ class DefaultSettings extends Settings {
   int getMaxSongHistory() => _maxSongHistory ?? _defaultMaxSongHistory;
 
   @override
-  String getYoutubeApiUrl() {
-    if (_youtubeApiUrl == null) {
-      throw Exception('Youtube API URL is not set');
-    }
-    return _youtubeApiUrl!;
-  }
-
-  @override
-  int getYoutubeApiMaxPing() => _youtubeApiMaxPing ?? _defaultYoutubeApiMaxPing;
+  YoutubeApiSettings getYoutubeApiSettings() =>
+      _youtubeApiSettings ?? _defaultYoutubeApiSettings;
 
   @override
   Future<void> setLanguage(String? language) async {
@@ -93,74 +87,23 @@ class DefaultSettings extends Settings {
   }
 
   @override
-  Future<void> setYoutubeApiUrl(String? apiUrl) async {
-    _youtubeApiUrl = apiUrl;
-    _onYoutubeApiUrlChanged();
-  }
-
-  @override
-  Future<void> setYoutubeApiMaxPing(int? maxPing) async {
-    _youtubeApiMaxPing = maxPing ?? _defaultYoutubeApiMaxPing;
+  Future<void> setYoutubeApiSettings(YoutubeApiSettings? settings) async {
+    _youtubeApiSettings = settings ?? _defaultYoutubeApiSettings;
+    _onYoutubeSettingsChanged();
   }
 }
 
 class UserSettings extends DefaultSettings {
-  static const String _youtubeApisProvider =
-      'https://api.invidious.io/instances.json?sort_by=health';
-
   late SharedPreferences preferences;
 
   Future<void> init() async {
     preferences = await SharedPreferences.getInstance();
     _language = preferences.getString('language');
     _maxSongHistory = preferences.getInt('maxSongHistory');
-    _youtubeApiUrl = preferences.getString('youtubeApiUrl');
-    _youtubeApiMaxPing = preferences.getInt('youtubeApiMaxPing');
-    _youtubeApiUrl ??= await _getValidYoutubeApiUrl();
-  }
-
-  Future<String> _getValidYoutubeApiUrl() async {
-    final response = await http.get(Uri.parse(_youtubeApisProvider));
-
-    if (response.statusCode != 200) {
-      throw Exception('Can not retreive YouTube APIS');
-    }
-
-    var list = jsonDecode(response.body) as List;
-    var apis = list
-        .where((e) =>
-            e[1]['type'] == 'https' &&
-            e[1]['api'] == true &&
-            e[1]['stats'] != null &&
-            e[1]['monitor'] != null &&
-            e[1]['monitor']['statusClass'] == 'success')
-        .toList();
-
-    int timeout = 1;
-    String? bestUrl;
-    Duration bestPing = Duration(seconds: timeout);
-    final max = Duration(milliseconds: getYoutubeApiMaxPing());
-    for (int i = 0; i < apis.length; i++) {
-      final api = apis[i][0];
-      final ping = Ping(api, timeout: timeout);
-      final first = await ping.stream.first;
-      if (first.response?.time != null) {
-        Duration time = first.response?.time as Duration;
-        if (time < max) {
-          return api;
-        }
-        if (time < bestPing) {
-          bestPing = time;
-          bestUrl = api;
-        }
-      }
-    }
-
-    if (bestUrl != null) {
-      return bestUrl;
-    }
-
-    throw Exception('Valid YouTube API not found');
+    _youtubeApiSettings = YoutubeApiSettings(
+      url: preferences.getString('youtubeApiUrl'),
+      maxPing: preferences.getInt('youtubeApiMaxPing'),
+    );
   }
 
   Future<void> _setString(String key, String? value) async {
@@ -196,16 +139,9 @@ class UserSettings extends DefaultSettings {
   }
 
   @override
-  Future<void> setYoutubeApiUrl(String? apiUrl) async {
-    apiUrl ??= await _getValidYoutubeApiUrl();
-    super.setYoutubeApiUrl(apiUrl);
-    await _setString('youtubeApiUrl', apiUrl);
-  }
-
-  @override
-  Future<void> setYoutubeApiMaxPing(int? maxPing) async {
-    super.setYoutubeApiMaxPing(maxPing);
-    await _setInt('youtubeApiMaxPing', maxPing);
-    await setYoutubeApiUrl(null);
+  Future<void> setYoutubeApiSettings(YoutubeApiSettings? settings) async {
+    super.setYoutubeApiSettings(settings);
+    await _setString('youtubeApiUrl', settings?.url);
+    await _setInt('youtubeApiMaxPing', settings?.maxPing);
   }
 }

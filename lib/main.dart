@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:joetube/services/storage.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -21,8 +22,6 @@ Future<void> main() async {
   UserSettings settings = UserSettings();
   await settings.init();
 
-  var path = await getApplicationDocumentsDirectory();
-
   AudioService audioService = AudioService(settings.getMaxSongHistory());
   settings.addMaxSongHistoryListener((max) => audioService.maxHistory = max);
 
@@ -31,23 +30,30 @@ Future<void> main() async {
   settings.addYoutubeApiUrlListener(
       (settings) => youtubeApi.searchApiUrl(settings));
 
+  var directory = await getApplicationDocumentsDirectory();
+  FileStorage storage = FileStorage(directory.path);
+
   runApp(JoeTube(
     settings: settings,
     audio: audioService,
     youtube: youtubeApi,
+    storage: storage,
   ));
 }
 
 class JoeTube extends StatefulWidget {
-  const JoeTube(
-      {super.key,
-      required this.settings,
-      required this.audio,
-      required this.youtube});
+  const JoeTube({
+    super.key,
+    required this.settings,
+    required this.audio,
+    required this.youtube,
+    required this.storage,
+  });
 
   final Settings settings;
   final AudioService audio;
   final YouTubeApi youtube;
+  final Storage storage;
 
   @override
   State<JoeTube> createState() => _JoeTubeState();

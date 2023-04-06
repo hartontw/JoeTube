@@ -5,6 +5,7 @@ import 'package:joetube/main.dart';
 import 'package:joetube/services/audio_service.dart';
 import 'package:joetube/services/settings.dart';
 
+import 'mocks/storage.dart';
 import 'mocks/youtube_api.dart';
 
 void main() {
@@ -15,8 +16,14 @@ void main() {
 
     MockYouTubeApi youtube = MockYouTubeApi();
 
-    await tester.pumpWidget(
-        JoeTube(settings: settings, audio: audio, youtube: youtube));
+    MockStorage storage = MockStorage();
+
+    await tester.pumpWidget(JoeTube(
+      settings: settings,
+      audio: audio,
+      youtube: youtube,
+      storage: storage,
+    ));
 
     expect(Get.currentRoute, '/');
   });

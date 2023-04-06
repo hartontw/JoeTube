@@ -23,16 +23,61 @@ class AudioService {
     }
   }
 
+  bool get loop => _collection.loop;
+  set loop(bool loop) => _collection.loop = loop;
+
+  bool get random => _collection.random;
+  set random(bool random) => _collection.random = random;
+
+  Future<void> next() async {
+    if (!_collection.hasNext) {
+      return;
+    }
+    _collection.goForward();
+    await _setPlaying(_collection.current as Song);
+  }
+
+  Future<void> previous() async {
+    if (!_collection.hasLast) {
+      return;
+    }
+    _collection.goBack();
+    await _setPlaying(_collection.current as Song);
+  }
+
+  Future<void> play(Song song) async {
+    if (_collection.current?.id == song.id) {
+      return;
+    }
+    await _setPlaying(song);
+  }
+
+  Future<void> playCollection(List<Song> songs) async {
+    _collection.load(songs);
+    await next();
+  }
+
+  Future<void> playAtCollection(int index) async {
+    _collection.goTo(index);
+    await _setPlaying(_collection.current as Song);
+  }
+
   void _addToHistory(Song song) {
     int index = _history.indexWhere((e) => e.id == song.id);
     if (index >= 0) {
       _history.removeAt(index);
     }
     _history.add(song);
-
     if (_history.length > _maxHistory) {
       _history.removeAt(0);
     }
+  }
+
+  Future<void> _setPlaying(Song song) async {
+    _addToHistory(song);
+    await _player.stop();
+    await _player.setAudioSource(await _getSource(song));
+    await _player.play();
   }
 
   Future<AudioSource> _getSource(Song song) async {

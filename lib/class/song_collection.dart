@@ -110,6 +110,20 @@ class SongCollection {
     _played.removeLast();
   }
 
+  void goTo(int index) {
+    if (index < 0 || index >= _collection.length) {
+      throw Exception('Index out of range');
+    }
+
+    _played.clear();
+    _remaining.clear();
+
+    _current = _collection[index];
+
+    _played.addAll(_collection.getRange(0, index));
+    _remaining.addAll(_collection.getRange(index + 1, _collection.length));
+  }
+
   bool contains(String id) {
     return _collection.any((e) => e.id == id) ||
         current != null && current!.id == id;

@@ -17,20 +17,30 @@ class Song {
     required this.authorId,
   });
 
-  String toJson() {
+  String toFile() {
     return '''
     {
-      "videoId": "$id",
-      "title": "$title",
-      "videoThumbnails": ${thumbnails.toJson()},
-      "lengthSeconds": ${duration.inSeconds},
-      "author": "$author",
+      "id": "$id",
+      "title": "${title.replaceAll('"', '\\"')}",
+      "duration": ${duration.inSeconds},
+      "author": "${author.replaceAll('"', '\\"')}",
       "authorId": "$authorId"
     }
     ''';
   }
 
-  factory Song.fromJson(Map<String, dynamic> json) {
+  factory Song.fromFile(Map<String, dynamic> json) {
+    return Song(
+      id: json['id'],
+      title: json['title'],
+      thumbnails: Thumbnails.fromSongId(json['id']),
+      duration: Duration(seconds: json['duration']),
+      author: json['author'],
+      authorId: json['authorId'],
+    );
+  }
+
+  factory Song.fromApi(Map<String, dynamic> json) {
     var thumbnails = json['videoThumbnails'] as List;
     if (thumbnails.length == 1) {
       if (thumbnails[0] is List) {
@@ -40,7 +50,7 @@ class Song {
     return Song(
       id: json['videoId'],
       title: json['title'],
-      thumbnails: Thumbnails.fromJson(thumbnails),
+      thumbnails: Thumbnails.fromApi(thumbnails),
       duration: Duration(seconds: json['lengthSeconds']),
       author: json['author'],
       authorId: json['authorId'],

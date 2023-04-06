@@ -9,36 +9,46 @@ class Thumbnails {
 
   Thumbnails({required this.low, required this.medium, required this.high});
 
-  String toJson() {
+  String toFile() {
     return '''
-    [
-      {
-        "url": "$low",
-        "width": 120,
-        "height": 90
-      },
-      {
-        "url": "$medium",
-        "width": 320,
-        "height": 180
-      },
-      {
-        "url": "$high",
-        "width": 480,
-        "height": 360
-      }
-    ]
+    {
+      "low": "$low",
+      "medium": "$medium",
+      "high": "$high"
+    }
     ''';
   }
 
-  factory Thumbnails.fromJson(List ts) {
+  factory Thumbnails.fromSongId(String id) {
+    const String BASE_URL = 'https://i.ytimg.com/vi';
+    return Thumbnails(
+      low: '$BASE_URL/$id/default.jpg',
+      medium: '$BASE_URL/$id/mqdefault.jpg',
+      high: '$BASE_URL/$id/hqdefault.jpg',
+    );
+  }
+
+  factory Thumbnails.fromFile(Map<String, dynamic> json) {
+    return Thumbnails(
+      low: json['low'],
+      medium: json['medium'],
+      high: json['high'],
+    );
+  }
+
+  factory Thumbnails.fromApi(List ts) {
     if (ts.isEmpty) throw Exception('Thumbnails not found');
 
+    String format(String url) {
+      return url.startsWith('//') ? 'https:$url' : url;
+    }
+
     if (ts.length == 1) {
+      final String url = format(ts.first['url']);
       return Thumbnails(
-        low: ts.first['url'],
-        medium: ts.first['url'],
-        high: ts.first['url'],
+        low: url,
+        medium: url,
+        high: url,
       );
     }
 
@@ -55,7 +65,7 @@ class Thumbnails {
           desired = ts[i]['url'];
         }
       }
-      return desired;
+      return format(desired);
     }
 
     return Thumbnails(
